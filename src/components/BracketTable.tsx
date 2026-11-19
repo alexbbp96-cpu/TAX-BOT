@@ -165,7 +165,7 @@ export function BracketTable({result, onSelectMilestone}: BracketTableProps) {
                     </span>
                     <span className="mx-1.5 text-slate-300">/</span>
                     <span className="text-xs text-slate-500">
-                      Ц{step.cycleIndex} · П{step.pairIndex}
+                      Цикл {step.cycleIndex}
                     </span>
                   </td>
                   <td className="py-2.5 px-4 font-mono text-xs tabular-nums whitespace-nowrap text-slate-800">

@@ -5,12 +5,10 @@ import {TaxProgressionChart} from './components/TaxProgressionChart';
 import {
   computeProgressiveTax,
   formatCurrency,
-  ProgressionMode,
 } from './lib/taxEngine';
 
 export default function App() {
   const [incomeInput, setIncomeInput] = useState<string>('100000');
-  const [mode, setMode] = useState<ProgressionMode>('pair_x6');
 
   const parsedIncome = useMemo(() => {
     const normalized = incomeInput.replace(/\s+/g, '').replace(',', '.');
@@ -19,8 +17,8 @@ export default function App() {
   }, [incomeInput]);
 
   const result = useMemo(
-    () => computeProgressiveTax(parsedIncome, mode),
-    [parsedIncome, mode],
+    () => computeProgressiveTax(parsedIncome),
+    [parsedIncome],
   );
 
   const handleSelectIncome = (value: number) => {
@@ -31,7 +29,6 @@ export default function App() {
     const header = [
       'Строка',
       'Цикл',
-      'Пара',
       'Диапазон от (c)',
       'Диапазон до (c)',
       'Ставка (%)',
@@ -46,7 +43,6 @@ export default function App() {
       .map((s) => [
         s.index,
         s.cycleIndex,
-        s.pairIndex,
         s.displayLower,
         s.upper,
         Math.round(s.rate * 100),
@@ -60,7 +56,6 @@ export default function App() {
       rows.push([
         result.steps.length + 1,
         12,
-        6,
         result.steps[result.steps.length - 1].upper + 1,
         '∞',
         34,
@@ -74,7 +69,6 @@ export default function App() {
     rows.push([
       'ИТОГО',
       result.activeCycle,
-      result.activePair,
       1,
       result.income,
       (result.effectiveRate * 100).toFixed(2),
@@ -92,7 +86,7 @@ export default function App() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `tax-bot-pro-${Math.round(result.income)}.csv`;
+    link.download = `tax-bot-pro-v1.1-${Math.round(result.income)}.csv`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -164,14 +158,14 @@ export default function App() {
         <section id="calculator" className="scroll-mt-20 space-y-6">
           <div className="space-y-1.5">
             <h1 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 text-balance">
-              Налоговый калькулятор PRO (11%–34%) × 12
+              Налоговый калькулятор PRO 1.1 (11%–34%) × 12
             </h1>
             <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
               <span>Ставки 11% / 23% / 34%</span>
               <span aria-hidden="true">·</span>
-              <span>6 пар по 2 цикла (36 ступеней)</span>
+              <span>12 циклов (36 ступеней)</span>
               <span aria-hidden="true">·</span>
-              <span>Прогрессия суммируется с вычета налога каждой строчки цикла</span>
+              <span>Шкала: 1–1 100 / 1 101–2 300 / 2 301–3 400 (×10 за цикл)</span>
             </div>
           </div>
 
@@ -205,7 +199,7 @@ export default function App() {
                   </p>
                   <p className="mt-1 text-xs text-slate-500">
                     {result.activeCycle > 0
-                      ? `Цикл ${result.activeCycle} из 12 · Пара ${result.activePair}`
+                      ? `Цикл ${result.activeCycle} из 12`
                       : 'База расчёта'}
                   </p>
                 </div>
@@ -331,51 +325,13 @@ export default function App() {
         {/* Section 2: Rate Chart */}
         <div className="scroll-mt-20">
           <TaxProgressionChart
-            mode={mode}
             currentResult={result}
             onSelectIncome={handleSelectIncome}
           />
         </div>
 
         {/* Section 3: Cycle Scale & Row-by-Row Breakdown */}
-        <section id="schedule" className="scroll-mt-20 space-y-4">
-          <div className="bg-white border border-slate-200 rounded-xl px-6 py-4 flex flex-wrap items-center justify-between gap-4">
-            <div>
-              <p className="text-xs font-medium text-slate-700">
-                Режим повторения шкалы (×12 циклов)
-              </p>
-              <p className="text-xs text-slate-500 mt-0.5">
-                {mode === 'pair_x6'
-                  ? 'Базовый блок из 2 циклов (1–1100 и 1101–11 000) повторяется 6 раз с шагом ×1 000 на каждую пару.'
-                  : 'Цикл 1 (1–1 100), цикл 2 (1 101–11 000), далее циклы 3–12 масштабируются по ×10 за цикл.'}
-              </p>
-            </div>
-            <div className="flex items-center p-1 bg-slate-100 rounded-lg gap-1">
-              <button
-                type="button"
-                onClick={() => setMode('pair_x6')}
-                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
-                  mode === 'pair_x6'
-                    ? 'bg-white text-slate-900 shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                (1.+2.) × 6 (×1000)
-              </button>
-              <button
-                type="button"
-                onClick={() => setMode('decade_x12')}
-                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
-                  mode === 'decade_x12'
-                    ? 'bg-white text-slate-900 shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                Декады × 12 (×10)
-              </button>
-            </div>
-          </div>
-
+        <section id="schedule" className="scroll-mt-20">
           <BracketTable
             result={result}
             onSelectMilestone={handleSelectIncome}
@@ -385,9 +341,9 @@ export default function App() {
 
       <footer className="border-t border-slate-200 bg-white mt-10">
         <div className="max-w-[1280px] mx-auto px-6 py-4 flex flex-wrap items-center justify-between gap-4 text-xs text-slate-500">
-          <span>TAX-BOT PRO · Прогрессивная шкала 11% / 23% / 34% × 12 циклов</span>
+          <span>TAX-BOT PRO 1.1 · Прогрессивная шкала 11% / 23% / 34% × 12 циклов</span>
           <span className="font-mono tabular-nums">
-            База 1-й пары: 1–110 (11%), 111–340 (23%), 341–1100 (34%), 1101–2300 (11%), 2301–3400 (23%), 3401–11000 (34%)
+            Цикл 1: 1–1 100 (11%), 1 101–2 300 (23%), 2 301–3 400 (34%) · далее ×10 за цикл
           </span>
         </div>
       </footer>

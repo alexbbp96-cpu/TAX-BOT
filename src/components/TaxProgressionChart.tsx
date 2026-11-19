@@ -3,12 +3,10 @@ import {
   computeProgressiveTax,
   formatCurrency,
   formatIntegerBound,
-  ProgressionMode,
   TaxComputationResult,
 } from '../lib/taxEngine';
 
 interface TaxProgressionChartProps {
-  mode: ProgressionMode;
   currentResult: TaxComputationResult;
   onSelectIncome: (income: number) => void;
 }
@@ -23,30 +21,20 @@ interface ChartPoint {
 }
 
 export function TaxProgressionChart({
-  mode,
   currentResult,
   onSelectIncome,
 }: TaxProgressionChartProps) {
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
 
   const chartData = useMemo(() => {
-    const sampleIncomes =
-      mode === 'pair_x6'
-        ? [
-            10, 50, 110, 220, 340, 700, 1100, 1700, 2300, 2850, 3400, 7000,
-            11000, 50000, 110000, 220000, 340000, 700000, 1100000, 1700000,
-            2300000, 2850000, 3400000, 7000000, 11000000, 110000000,
-            340000000, 1100000000, 11000000000,
-          ]
-        : [
-            10, 50, 110, 220, 340, 700, 1100, 1700, 2300, 2850, 3400, 7000,
-            11000, 17000, 23000, 28500, 34000, 70000, 110000, 230000, 340000,
-            1100000, 2300000, 3400000, 11000000, 34000000, 110000000,
-            1100000000,
-          ];
+    const sampleIncomes: number[] = [100, 500];
+    for (let c = 0; c < 12; c++) {
+      const scale = Math.pow(10, c);
+      sampleIncomes.push(1100 * scale, 2300 * scale, 3400 * scale);
+    }
 
     const points: ChartPoint[] = sampleIncomes.map((inc) => {
-      const res = computeProgressiveTax(inc, mode);
+      const res = computeProgressiveTax(inc);
       return {
         income: inc,
         logX: Math.log10(inc),
@@ -58,7 +46,7 @@ export function TaxProgressionChart({
     });
 
     return points;
-  }, [mode]);
+  }, []);
 
   const width = 840;
   const height = 270;
@@ -69,8 +57,8 @@ export function TaxProgressionChart({
   const innerW = width - padLeft - padRight;
   const innerH = height - padTop - padBottom;
 
-  const minLog = chartData[0]?.logX ?? 1;
-  const maxLog = chartData[chartData.length - 1]?.logX ?? 10;
+  const minLog = chartData[0]?.logX ?? 2;
+  const maxLog = chartData[chartData.length - 1]?.logX ?? 14.5;
 
   const toX = (logVal: number) =>
     padLeft + ((logVal - minLog) / Math.max(0.001, maxLog - minLog)) * innerW;
@@ -92,15 +80,23 @@ export function TaxProgressionChart({
     .join(' ');
 
   const currentLog =
-    currentResult.income >= 10
+    currentResult.income >= 100
       ? Math.min(maxLog, Math.max(minLog, Math.log10(currentResult.income)))
       : null;
 
   const activePoint = hoveredIdx !== null ? chartData[hoveredIdx] : null;
 
-  const xTicks = [100, 1000, 10000, 100000, 1000000, 10000000, 100000000, 1000000000].filter(
+  const xTicks = [1e3, 1e5, 1e7, 1e9, 1e11, 1e13].filter(
     (v) => Math.log10(v) >= minLog && Math.log10(v) <= maxLog,
   );
+
+  const formatTickLabel = (val: number) => {
+    if (val >= 1e12) return `${val / 1e12} трлн`;
+    if (val >= 1e9) return `${val / 1e9} млрд`;
+    if (val >= 1e6) return `${val / 1e6} млн`;
+    if (val >= 1e3) return `${val / 1e3}k`;
+    return String(val);
+  };
 
   return (
     <section
@@ -164,14 +160,6 @@ export function TaxProgressionChart({
           {/* X-axis ticks */}
           {xTicks.map((val) => {
             const x = toX(Math.log10(val));
-            const label =
-              val >= 1e9
-                ? `${val / 1e9} млрд`
-                : val >= 1e6
-                  ? `${val / 1e6} млн`
-                  : val >= 1e3
-                    ? `${val / 1e3}k`
-                    : String(val);
             return (
               <g key={val}>
                 <line
@@ -187,7 +175,7 @@ export function TaxProgressionChart({
                   textAnchor="middle"
                   className="fill-slate-500 text-[11px] font-mono"
                 >
-                  {label}
+                  {formatTickLabel(val)}
                 </text>
               </g>
             );
